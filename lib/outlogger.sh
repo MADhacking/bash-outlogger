@@ -24,7 +24,7 @@ function init_logging()
 # $1 should contain the name of the file to log to 
 function redirect_output_to_file()
 {
-	[[ -n ${1} ]] && echo "ERROR! log file name required when calling redirect_output_to_file()" >&2 && exit 127
+	[[ -z ${1} ]] && echo "ERROR! log file name required when calling redirect_output_to_file()" >&2 && exit 127
 	[[ ${__logsredirected} ]] && echo "ERROR! logs already redirected" >&2 && exit 127
 	
 	# Store the current stdout and stderr file descriptors and redirect both to the log.
@@ -39,7 +39,7 @@ function redirect_output_to_file()
 # $1 should contain the name of the file to log to 
 function tee_output_to_file_stdout()
 {
-	[[ -n ${1} ]] && echo "ERROR! log file name required when calling tee_output_to_file_stdout()" >&2 && exit 127
+	[[ -z ${1} ]] && echo "ERROR! log file name required when calling tee_output_to_file_stdout()" >&2 && exit 127
 	[[ ${__logsredirected} ]] && echo "ERROR! logs already redirected" >&2 && exit 127
 
 	# Store the current stdout file descriptor.
