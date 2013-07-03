@@ -75,7 +75,7 @@ function exec_and_log()
 	l1="${__logpath}/${1}.out.log"
 	l2="${__logpath}/${1}.err.log"
 
-	$( ${2} 1>> $l1 2>> $l2 )
+	eval "${2}" 1>> $l1 2>> $l2
 	rs=$?
 
 	[[ ! -s ${l1} ]] && rm ${l1} -f
