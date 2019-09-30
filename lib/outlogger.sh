@@ -15,10 +15,10 @@ function init_logging()
 	[[ -z "${1}" ]] && echo "ERROR! A valid path must be supplied to initialise logging." >&2 && exit 127
 
 	__logpath="${1}"
-	mkdir -p ${__logpath}
+	mkdir -p "${__logpath}"
 	[[ ! -w ${__logpath} ]] && echo "ERROR! Unable to write to ${__logpath} in init_logging()" >&2 && exit 127
 
-	rm ${__logpath}/* -f
+	rm "${__logpath}"/* -f
 }
 
 # Redirect stdout and stderr to a file.
@@ -31,8 +31,8 @@ function redirect_output_to_file()
 	# Store the current stdout and stderr file descriptors and redirect both to the log.
 	__logredirfile="${1}"
 	exec 5<&1 6<&2
-	exec 1> ${__logpath}/${__logredirfile} 
-	exec 2> ${__logpath}/${__logredirfile} 
+	exec 1> "${__logpath}/${__logredirfile}"
+	exec 2> "${__logpath}/${__logredirfile}"
 	
 	__logsredirected=true
 }
@@ -50,13 +50,13 @@ function tee_output_to_file_stdout()
 	# Tee a randomly named pipe to the log and stdout
 	__logpipe="/tmp/outloger_$(uuidgen -t).pipe"
 	__logredirfile="${1}"
-	trap "rm -f ${__logpipe}" EXIT
-	mknod ${__logpipe} p
-	tee < ${__logpipe} ${__logpath}/${__logredirfile} &
+	trap 'rm -f ${__logpipe}' EXIT
+	mknod "${__logpipe}" p
+	tee < "${__logpipe}" "${__logpath}/${__logredirfile}" &
 	
 	# Redirect stdout and stderr to the pipe
-	exec 1> ${__logpipe}
-	exec 2> ${__logpipe}
+	exec 1> "${__logpipe}"
+	exec 2> "${__logpipe}"
 	
 	__logsredirected=true
 }
@@ -75,11 +75,11 @@ function exec_and_log()
 	l1="${__logpath}/${1}.out.log"
 	l2="${__logpath}/${1}.err.log"
 
-	eval "${2}" 1>> $l1 2>> $l2
+	eval "${2}" 1>> "$l1" 2>> "$l2"
 	rs=$?
 
-	[[ ! -s ${l1} ]] && rm ${l1} -f
-	[[ ! -s ${l2} ]] && rm ${l2} -f
+	[[ ! -s ${l1} ]] && rm "${l1}" -f
+	[[ ! -s ${l2} ]] && rm "${l2}" -f
 	
 	[[ -e ${l1} ]] && __logfiles="${__logfiles} ${l1}"
 	[[ -e ${l2} ]] && __logfiles="${__logfiles} ${l2}"
@@ -93,10 +93,10 @@ function add_aux_logs()
 {
 	[[ -z "${__logpath}" ]] && echo "ERROR! Logging not initialised when calling add_aux_logs()." >&2 && exit 127
 	
-	logs=${__logpath}/${1}.*.aux.*.log
-	for l in ${logs}
+	logs=( "${__logpath}"/"${1}".*.aux.*.log )
+	for l in "${logs[@]}"
 	do
-		[[ ! -s ${l} ]] && rm ${l} -f
+		[[ ! -s ${l} ]] && rm "${l}" -f
 		[[ -e ${l} ]] && __logfiles="${__logfiles} ${l}"
 	done
 }
@@ -107,7 +107,7 @@ function end_log_redirect()
 	if ! ${__logsredirected} ; then echo "ERROR! logs not redirected when calling end_log_redirect()." >&2 && exit 127 ; fi
 
 	# End logging redirect by restoring stdout and stderr and killing the pipe if there is one
-	[[ -n "${__logpipe}" ]] && rm -f ${__logpipe}
+	[[ -n "${__logpipe}" ]] && rm -f "${__logpipe}"
 	sleep 0.1
 	exec 1>&5 2>&6
 
@@ -125,8 +125,8 @@ function bzip_large_logs()
 	for lf in ${__logfiles}
 	do
 		fs=$(stat -c%s "${lf}")
-		(( ${fs} > ${1} )) && bzip2 -9 ${lf} && nlf="${nlf} ${lf}.bz2"
-		(( ${fs} <= ${1} )) && nlf="${nlf} ${lf}"
+		(( fs > ${1} )) && bzip2 -9 "${lf}" && nlf="${nlf} ${lf}.bz2"
+		(( fs <= ${1} )) && nlf="${nlf} ${lf}"
 	done
 	__logfiles="${nlf}"
 	__logszipped=true
@@ -137,7 +137,7 @@ function get_log_files()
 {
 	[[ -z "${__logpath}" ]] && echo "ERROR! Logging not initialised when calling get_log_files()." >&2 && exit 127 
 
-	OFS="|"
+	export OFS="|"
 	eval "$1=\"${__logfiles}\""
 	unset OFS
 }
@@ -153,8 +153,8 @@ function send_logs_by_email()
 	[[ -z "${2}" ]] &&  echo "ERROR! send_logs_by_email() requires a recipient as parameter 2." >&2 && exit 127
 
 	mutt -s "${1}" \
-         -a ${__logfiles} \
-         -- ${2} < ${__logpath}/${__logredirfile}
+         -a "${__logfiles}" \
+         -- "${2}" < "${__logpath}/${__logredirfile}"
 }
 
 # Displays a list of the log files.
@@ -175,6 +175,6 @@ function clean_up_logs()
 
 	for lf in ${__logfiles}
 	do
-		rm ${lf}
+		rm "${lf}"
 	done
 }
