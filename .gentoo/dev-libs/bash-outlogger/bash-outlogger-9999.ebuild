@@ -27,6 +27,7 @@ RDEPEND="app-arch/bzip2
 DEPEND="test? (
     ${RDEPEND}
     dev-util/bats-assert
+    dev-util/bats-file
 )"
 
 src_test() {
