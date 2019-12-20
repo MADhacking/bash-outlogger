@@ -6,6 +6,14 @@ load '/usr/lib/bats-support/load.bash'
 load '/usr/lib/bats-assert/load.bash'
 load '/usr/lib/bats-file/load.bash'
 
+function setup() {
+    rm -rf /tmp/outloggertest
+}
+
+function teardown() {
+    rm -rf /tmp/outloggertest
+}
+
 @test "init_logging no path" {
     run init_logging
     
