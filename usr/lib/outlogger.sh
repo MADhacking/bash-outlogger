@@ -1,6 +1,6 @@
 #! /bin/bash
 
-__logfiles=""
+__logfiles=()
 __logpath=""
 __logszipped=false
 __logpipe=""
@@ -91,25 +91,10 @@ function exec_and_log()
 	[[ ! -s ${l1} ]] && rm "${l1}" -f
 	[[ ! -s ${l2} ]] && rm "${l2}" -f
 	
-	[[ -e ${l1} ]] && __logfiles="${__logfiles} ${l1}"
-	[[ -e ${l2} ]] && __logfiles="${__logfiles} ${l2}"
+	[[ -e ${l1} ]] && __logfiles+=("${l1}")
+	[[ -e ${l2} ]] && __logfiles+=("${l2}")
 	
 	return $rs
-}
-
-# Add auxilery log files to the list
-# $1 should contain the base file name
-function add_aux_logs()
-{
-    [[ -z "${1}" ]] && die "A file name is expected when calling add_aux_logs()"
-	[[ -z "${__logpath}" ]] && die "Logging not initialised when calling add_aux_logs() - you must call init_logging() first"
-	
-	logs=( "${__logpath}"/"${1}".*.aux.*.log )
-	for l in "${logs[@]}"
-	do
-		[[ ! -s ${l} ]] && rm "${l}" -f
-		[[ -e ${l} ]] && __logfiles="${__logfiles} ${l}"
-	done
 }
 
 # End the redirection of logging configured using redirect_output_to_file() or tee_output_to_file_stdout()
@@ -129,29 +114,27 @@ function end_log_redirect()
 # $1 should contain the minimum size of the log before bzip will be used
 function bzip_large_logs()
 {
-    (( "${1}" == 0 )) && die "A minimum size (in bytes) is required when calling bzip_large_logs()"
-    [[ -z "${__logpath}" ]] && die "Logging not initialised when calling bzip_large_logs()"
+    [[ -z "${1}" ]] && die "A minimum size (in bytes) is required when calling bzip_large_logs()"
+    [[ -z "${__logpath}" ]] && die "Logging not initialised when calling bzip_large_logs() - you must call init_logging() first"
 	${__logszipped} && die "Logs already bzipped when calling bzip_large_logs()"
 
-	nlf=""
-	for lf in ${__logfiles}
+	nlf=()
+	for lf in "${__logfiles[@]}"
 	do
 		fs=$(stat -c%s "${lf}")
-		(( fs > ${1} )) && bzip2 -9 "${lf}" && nlf="${nlf} ${lf}.bz2"
-		(( fs <= ${1} )) && nlf="${nlf} ${lf}"
+		(( fs > ${1} )) && bzip2 -9 "${lf}" && nlf+=("${lf}.bz2")
+		(( fs <= ${1} )) && nlf+=("${lf}")
 	done
-	__logfiles="${nlf}"
+	__logfiles=("${nlf[@]}")
 	__logszipped=true
 }
 
-# Returns a list of log files in $1
+# Returns an array of log files in $1
 function get_log_files()
 {
-	[[ -z "${__logpath}" ]] && die "Logging not initialised when calling get_log_files()"
+	[[ -z "${__logpath}" ]] && die "Logging not initialised when calling get_log_files() - you must call init_logging() first"
 
-	export OFS="|"
-	eval "$1=\"${__logfiles}\""
-	unset OFS
+	eval "$1=( ${__logfiles[*]} )"
 }
 
 # Send the logs by email
@@ -159,33 +142,46 @@ function get_log_files()
 # $2 should contain the recipient
 function send_logs_by_email()
 {
-	[[ -z "${__logpath}" ]] && die "Logging not initialised when calling send_logs_by_email()"
-	[[ -z "${__logredirfile}" ]] && die "send_logs_by_email() requires logs to be redirected first"
-	[[ -z "${1}" ]] && die "send_logs_by_email() requires a subject as parameter 1"
-	[[ -z "${2}" ]] && die "send_logs_by_email() requires a recipient as parameter 2"
-
-	mutt -s "${1}" \
-         -a "${__logfiles}" \
-         -- "${2}" < "${__logpath}/${__logredirfile}"
+    [[ -z "${1}" ]] && die "send_logs_by_email() requires a subject as parameter 1"
+    [[ -z "${2}" ]] && die "send_logs_by_email() requires a recipient as parameter 2"
+	[[ -z "${__logpath}" ]] && die "Logging not initialised when calling send_logs_by_email() - you must call init_logging() first"
+    [[ -z "${__logredirfile}" ]] && die "send_logs_by_email() requires logs to be redirected first"
+    
+    if (( ${#__logfiles[@]} > 0 )); then
+    	mutt -s "${1}" \
+      	     -a "${__logfiles[@]}" \
+             -- "${2}" < "${__logpath}/${__logredirfile}"
+     else
+        mutt -s "${1}" \
+             -- "${2}" < "${__logpath}/${__logredirfile}"
+     fi
 }
 
 # Displays a list of the log files.
 function display_log_paths()
 {
-	echo "Logs can be found at:"
-	[[ -n "${__logsredirected}" ]] && echo "    ${__logpath}/${__logredirfile}"
-	for lf in ${__logfiles}
-	do
-		echo "    ${lf}"
-	done
+    [[ -z "${__logpath}" ]] && die "Logging not initialised when calling display_log_paths() - you must call init_logging() first"
+    
+    if [[ -n "${__logredirfile}" ]] || (( ${#__logfiles[@]} > 0 )); then
+    	echo "Logs can be found at:"
+    	[[ -n "${__logredirfile}" ]] && echo "    ${__logpath}/${__logredirfile}"
+    	for lf in "${__logfiles[@]}"
+    	do
+    		echo "    ${lf}"
+    	done
+    else
+        echo "No log files were generated."
+    fi
 }
 
 # Removes all log files
 function clean_up_logs()
 {
-	[[ -z "${__logpath}" ]] && die "Logging not initialised when calling clean_up_logs()"
+	[[ -z "${__logpath}" ]] && die "Logging not initialised when calling clean_up_logs() - you must call init_logging() first"
+    ${__logsredirected} && die "logs still redirected when calling clean_up_logs() - you must call end_log_redirect() first"
 
-	for lf in ${__logfiles}
+    [[ -n "${__logredirfile}" ]] && rm "${__logpath}/${__logredirfile}"
+	for lf in "${__logfiles[@]}"
 	do
 		rm "${lf}"
 	done
